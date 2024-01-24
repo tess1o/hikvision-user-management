@@ -2,6 +2,8 @@ package com.github.hikvision.api.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.github.hikvision.api.exceptions.EmployeeAlreadyExist;
+import com.github.hikvision.api.exceptions.FaceDetectFailed;
 import com.github.hikvision.api.model.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -9,11 +11,13 @@ import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpPut;
-import org.apache.hc.client5.http.entity.mime.*;
+import org.apache.hc.client5.http.entity.mime.ByteArrayBody;
+import org.apache.hc.client5.http.entity.mime.HttpMultipartMode;
+import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
+import org.apache.hc.client5.http.entity.mime.StringBody;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.client5.http.utils.Base64;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
@@ -21,29 +25,25 @@ import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class HikVisionServiceImpl implements HikVisionService {
-
     public static final String EMPLOYEE_NO_ALREADY_EXIST_ERROR_MESSAGE = "employeeNoAlreadyExist";
+    public static final String FACE_DETECT_FAILED_ERROR_MESSAGE = "faceDetectFailed";
     public static final int SEARCH_MAX_RESULTS = 30;
-    private final String serverUrl;
-    private final String username;
-    private final String password;
-    private final BasicCredentialsProvider credentialsProvider;
-
     private static final String ADD_USER_URL = "/ISAPI/AccessControl/UserInfo/Record?format=json";
     private static final String SEARCH_REQUEST_URL = "/ISAPI/AccessControl/UserInfo/Search?format=json";
     private static final String DELETE_USER_URL = "/ISAPI/AccessControl/UserInfo/Delete?format=json";
     private static final String ADD_PHOTO_URL = "/ISAPI/Intelligent/FDLib/FDSetUp?format=json";
-
+    private final String serverUrl;
+    private final String username;
+    private final String password;
+    private final BasicCredentialsProvider credentialsProvider;
 
     @SneakyThrows
     public HikVisionServiceImpl(String serverUrl, String username, String password) {
@@ -57,9 +57,7 @@ public class HikVisionServiceImpl implements HikVisionService {
     public List<UserInfo> findAll() throws IOException {
         ObjectMapper mapper = ObjectMapperFactory.getObjectMapper();
         List<UserInfo> results = new ArrayList<>();
-        try (CloseableHttpClient httpClient = HttpClientBuilder.create()
-                .setDefaultCredentialsProvider(credentialsProvider)
-                .build()) {
+        try (CloseableHttpClient httpClient = getHttpClient()) {
             int position = 0;
             int matches;
             do {
@@ -76,7 +74,7 @@ public class HikVisionServiceImpl implements HikVisionService {
     }
 
     private UserInfoSearchResponse executeSearchRequest(CloseableHttpClient httpClient, ObjectMapper mapper, int position) throws IOException {
-        log.info("Executing search request for start position {}", position);
+        log.info("Executing search request for start position: {}", position);
         UserInfoSearchRequest searchRequest = UserInfoSearchRequest.builder()
                 .searchID(UUID.randomUUID().toString().replace("-", ""))
                 .maxResults(SEARCH_MAX_RESULTS)
@@ -98,15 +96,28 @@ public class HikVisionServiceImpl implements HikVisionService {
     @Override
     public void addUser(UserInfo user, byte[] photo) throws IOException {
         log.info("Trying to add user with employeeCode {}", user.employeeNo);
-        try (CloseableHttpClient httpClient = HttpClientBuilder.create()
-                .setDefaultCredentialsProvider(credentialsProvider)
-                .build()) {
+        try (CloseableHttpClient httpClient = getHttpClient()) {
             HttpResponseWrapper addUserResponse = addUser(httpClient, user);
-            log.info("Response {}", addUserResponse);
+            log.info("AddUserResponse: {}", addUserResponse);
             if (addUserResponse.getResponseCode() == 200) {
                 log.info("User with employeeNo '{}' was added", user.employeeNo);
                 HttpResponseWrapper addPhoto = addPhoto(httpClient, user.getEmployeeNo(), photo); //temporary
                 log.info("Add photo response = {}", addPhoto);
+                if (addPhoto.getResponseCode() == 200) {
+                    log.info("Photo is successfully added to user {}", user.getEmployeeNo());
+                    return;
+                } else {
+                    try {
+                        remove(user.getEmployeeNo());
+                    } catch (Exception e) {
+                        log.error("Tried to remove employee " + user.getEmployeeNo() + " but failed", e);
+                    }
+                    HikVisionErrorResponse errorResponse = ObjectMapperFactory.getObjectMapperForErrors()
+                            .readValue(addPhoto.getResponseBody(), HikVisionErrorResponse.class);
+                    if (FACE_DETECT_FAILED_ERROR_MESSAGE.equals(errorResponse.getSubStatusCode())) {
+                        throw new FaceDetectFailed("Unable to detect face in image");
+                    }
+                }
                 return;
             }
             // response code is not 200, so we have an issue
@@ -115,7 +126,7 @@ public class HikVisionServiceImpl implements HikVisionService {
                 HikVisionErrorResponse errorResponse = ObjectMapperFactory.getObjectMapperForErrors()
                         .readValue(addUserResponse.getResponseBody(), HikVisionErrorResponse.class);
                 if (EMPLOYEE_NO_ALREADY_EXIST_ERROR_MESSAGE.equals(errorResponse.subStatusCode)) {
-                    throw new IOException("Unable to add user, employee code " + user.employeeNo + " is already used");
+                    throw new EmployeeAlreadyExist("Unable to add user, employee code " + user.employeeNo + " is already used");
                 }
             } catch (MismatchedInputException e) {
                 log.error("Unable to cast response to HikVisionErrorResponse, probably received different type of error", e);
@@ -125,14 +136,6 @@ public class HikVisionServiceImpl implements HikVisionService {
     }
 
     /**
-     * {
-     * "statusCode":	6,
-     * "statusString":	"Invalid Content",
-     * "subStatusCode":	"employeeNoAlreadyExist",
-     * "errorCode":	1610637344,
-     * "errorMsg":	"checkUser"
-     * }
-     *
      * @param client
      * @param user
      * @return
@@ -176,28 +179,12 @@ public class HikVisionServiceImpl implements HikVisionService {
     }
 
     @Override
-    public HttpResponseWrapper remove(String id) throws IOException {
-        return removeUsersById(List.of(id));
-    }
-
-    @Override
-    public void remove(List<String> ids) throws IOException {
-        HttpResponseWrapper response = removeUsersById(ids);
-        log.info("Response - {}", response);
-    }
-
-    @Override
-    public void removeAll() throws IOException {
-        List<String> users = findAll().stream()
-                .map(UserInfo::getEmployeeNo)
-                .collect(Collectors.toList());
-        remove(users);
+    public HttpResponseWrapper remove(List<String> ids) throws IOException {
+        return removeUsersById(ids);
     }
 
     private HttpResponseWrapper removeUsersById(List<String> ids) throws IOException {
-        try (CloseableHttpClient httpClient = HttpClientBuilder.create()
-                .setDefaultCredentialsProvider(credentialsProvider)
-                .build()) {
+        try (CloseableHttpClient httpClient = getHttpClient()) {
             HttpPut httpPut = new HttpPut(serverUrl + DELETE_USER_URL);
             httpPut.addHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded; charset=UTF-8");
             String removeRequest = ObjectMapperFactory.getObjectMapper().writeValueAsString(UserDeleteRequest.of(ids));
@@ -205,10 +192,17 @@ public class HikVisionServiceImpl implements HikVisionService {
             return httpClient.execute(httpPut,
                     response -> {
                         String responseString = EntityUtils.toString(response.getEntity());
+                        log.info("Remove user response - {}", responseString);
                         return new HttpResponseWrapper(responseString, response.getCode());
                     }
             );
         }
+    }
+
+    private CloseableHttpClient getHttpClient() {
+        return HttpClientBuilder.create()
+                .setDefaultCredentialsProvider(credentialsProvider)
+                .build();
     }
 
     private BasicCredentialsProvider getCredentialsProvider() throws URISyntaxException {
