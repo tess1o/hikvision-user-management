@@ -28,6 +28,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -108,7 +109,10 @@ public class HikVisionServiceImpl implements HikVisionService {
                     return;
                 } else {
                     try {
-                        remove(user.getEmployeeNo());
+                        HttpResponseWrapper removeResponse = remove(user.getEmployeeNo());
+                        if (removeResponse.getResponseCode() != 200) {
+                            throw new IOException("Unable to remove user, got response: " + removeResponse.getResponseBody());
+                        }
                     } catch (Exception e) {
                         log.error("Tried to remove employee " + user.getEmployeeNo() + " but failed", e);
                     }
@@ -135,12 +139,6 @@ public class HikVisionServiceImpl implements HikVisionService {
         }
     }
 
-    /**
-     * @param client
-     * @param user
-     * @return
-     * @throws IOException
-     */
     private HttpResponseWrapper addUser(CloseableHttpClient client, UserInfo user) throws IOException {
         HttpPost httpPost = new HttpPost(serverUrl + ADD_USER_URL);
         httpPost.addHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded; charset=UTF-8");
@@ -181,6 +179,20 @@ public class HikVisionServiceImpl implements HikVisionService {
     @Override
     public HttpResponseWrapper remove(List<String> ids) throws IOException {
         return removeUsersById(ids);
+    }
+
+    @Override
+    public String findLatestEmployeeCode() throws IOException {
+        final String defaultValue = "6";
+        final String notFound = "-1";
+        final int step = 6;
+        List<UserInfo> allUsers = findAll();
+        String lastValue = allUsers.stream().max(Comparator.comparingInt(o -> Integer.parseInt(o.getEmployeeNo())))
+                .map(UserInfo::getEmployeeNo).orElse(notFound);
+        if (notFound.equals(lastValue)) {
+            return defaultValue;
+        }
+        return String.valueOf(Integer.parseInt(lastValue) + step);
     }
 
     private HttpResponseWrapper removeUsersById(List<String> ids) throws IOException {

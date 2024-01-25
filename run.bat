@@ -1,0 +1,1 @@
+java -jar hikvision-user-management-1.0-SNAPSHOT-jar-with-dependencies.jar

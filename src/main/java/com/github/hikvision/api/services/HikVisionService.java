@@ -22,4 +22,6 @@ public interface HikVisionService {
                 .collect(Collectors.toList());
         return remove(users);
     }
+
+    String findLatestEmployeeCode() throws IOException;
 }

@@ -13,14 +13,21 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <httpclient5.version>5.3</httpclient5.version>
+        <jackson-databind.version>2.16.1</jackson-databind.version>
+        <jackson-datatype-jsr310.version>2.16.1</jackson-datatype-jsr310.version>
+        <lombok.version>1.18.30</lombok.version>
+        <logback-classic.version>1.4.14</logback-classic.version>
+        <slf4j-api.version>2.0.11</slf4j-api.version>
+        <webcam-capture.version>0.3.12</webcam-capture.version>
+        <webcam-capture-driver-native.version>1.0.0</webcam-capture-driver-native.version>
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents.client5/httpclient5 -->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.3</version>
+            <version>${httpclient5.version}</version>
             <exclusions>
                 <exclusion>
                     <artifactId>commons-logging</artifactId>
@@ -29,50 +36,48 @@
             </exclusions>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.16.1</version>
+            <version>${jackson-databind.version}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.datatype/jackson-datatype-jsr310 -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.16.1</version>
+            <version>${jackson-datatype-jsr310.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/ch.qos.logback/logback-classic -->
+
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.14</version>
+            <version>${logback-classic.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.11</version>
+            <version>${slf4j-api.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.github.sarxos</groupId>
             <artifactId>webcam-capture</artifactId>
-            <version>0.3.12</version>
+            <version>${webcam-capture.version}</version>
         </dependency>
 
-        <dependency>
+<!--        <dependency>
             <groupId>io.github.eduramiba</groupId>
             <artifactId>webcam-capture-driver-native</artifactId>
-            <version>1.0.0</version>
-        </dependency>
+            <version>${webcam-capture-driver-native.version}</version>
+        </dependency>-->
 
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -80,9 +85,12 @@
             <version>1.4.3</version>
         </dependency>
 
-
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <version>2.3.2</version>
+        </dependency>
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
