@@ -19,7 +19,7 @@ public class Main {
 
     @SneakyThrows
     public static void main(String[] args) {
-       // Webcam.setDriver(new NativeDriver());
+        // Webcam.setDriver(new NativeDriver());
         Config conf = ConfigFactory.load();
         String serverUrl = conf.getString("hikvision.server.url");
         String username = conf.getString("hikvision.server.username");
@@ -28,9 +28,17 @@ public class Main {
 
         AppUIConfig appUIConfig = AppUIConfig
                 .builder()
+                .isFullScreen(conf.getBoolean("ui.app.full.screen"))
                 .appTitleText(conf.getString("ui.app.title.text"))
                 .buttonText(conf.getString("ui.add.user.button.text"))
-                .isFullScreen(conf.getBoolean("ui.app.full.screen"))
+                .addUserButtonWidth(conf.getInt("ui.add.user.button.width"))
+                .addUserButtonHeight(conf.getInt("ui.add.user.button.height"))
+                .addUserButtonPositionX(conf.getInt("ui.add.user.button.position.x"))
+                .addUserButtonPositionY(conf.getInt("ui.add.user.button.position.y"))
+                .addUserButtonFontName(conf.getString("ui.add.user.button.font.name"))
+                .addUserButtonFontSize(conf.getInt("ui.add.user.button.font.size"))
+                .addUserButtonFontColor(conf.getString("ui.add.user.button.font.color"))
+                .addUserButtonShowBackground(conf.getBoolean("ui.add.user.button.showBackground"))
                 .build();
 
         HikVisionService service = new HikVisionServiceImpl(serverUrl, username, password);
