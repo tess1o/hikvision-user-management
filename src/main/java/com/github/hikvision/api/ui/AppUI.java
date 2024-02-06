@@ -31,7 +31,8 @@ public class AppUI extends JFrame {
         this.service = service;
 
         Dimension size = WebcamResolution.VGA.getSize();
-        webcam.setViewSize(size);
+        this.webcam.setViewSize(size);
+        this.webcam.open();
 
         JButton addUserButton = new JButton(new AddUserButtonAction(appConfig.getButtonText()));
         addUserButton.setEnabled(true);
@@ -77,6 +78,7 @@ public class AppUI extends JFrame {
         public void actionPerformed(ActionEvent event) {
             try {
                 String employeeNo = service.findLatestEmployeeCode();
+                log.info("Will use employeeCode for this user: {}", employeeNo);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ImageIO.write(webcam.getImage(), "jpg", baos);
                 byte[] photo = baos.toByteArray();

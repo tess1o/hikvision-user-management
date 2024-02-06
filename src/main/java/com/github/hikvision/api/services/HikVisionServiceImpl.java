@@ -190,9 +190,12 @@ public class HikVisionServiceImpl implements HikVisionService {
         String lastValue = allUsers.stream().max(Comparator.comparingInt(o -> Integer.parseInt(o.getEmployeeNo())))
                 .map(UserInfo::getEmployeeNo).orElse(notFound);
         if (notFound.equals(lastValue)) {
+            log.info("No users found, will use a default value - {}", defaultValue);
             return defaultValue;
         }
-        return String.valueOf(Integer.parseInt(lastValue) + step);
+        String nextCode = String.valueOf(Integer.parseInt(lastValue) + step);
+        log.info("The next available employeeCode is {}", nextCode);
+        return nextCode;
     }
 
     private HttpResponseWrapper removeUsersById(List<String> ids) throws IOException {
