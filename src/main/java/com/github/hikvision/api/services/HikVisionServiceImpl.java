@@ -44,13 +44,15 @@ public class HikVisionServiceImpl implements HikVisionService {
     private final String serverUrl;
     private final String username;
     private final String password;
+    private final int employeeCodeStep;
     private final BasicCredentialsProvider credentialsProvider;
 
     @SneakyThrows
-    public HikVisionServiceImpl(String serverUrl, String username, String password) {
+    public HikVisionServiceImpl(String serverUrl, String username, String password, int hikvisionEmployeeCodeStep) {
         this.serverUrl = serverUrl;
         this.username = username;
         this.password = password;
+        this.employeeCodeStep = hikvisionEmployeeCodeStep;
         this.credentialsProvider = getCredentialsProvider();
     }
 
@@ -183,9 +185,8 @@ public class HikVisionServiceImpl implements HikVisionService {
 
     @Override
     public String findLatestEmployeeCode() throws IOException {
-        final String defaultValue = "6";
+        final String defaultValue = String.valueOf(employeeCodeStep);
         final String notFound = "-1";
-        final int step = 6;
         List<UserInfo> allUsers = findAll();
         String lastValue = allUsers.stream().max(Comparator.comparingInt(o -> Integer.parseInt(o.getEmployeeNo())))
                 .map(UserInfo::getEmployeeNo).orElse(notFound);
@@ -193,7 +194,7 @@ public class HikVisionServiceImpl implements HikVisionService {
             log.info("No users found, will use a default value - {}", defaultValue);
             return defaultValue;
         }
-        String nextCode = String.valueOf(Integer.parseInt(lastValue) + step);
+        String nextCode = String.valueOf(Integer.parseInt(lastValue) + employeeCodeStep);
         log.info("The next available employeeCode is {}", nextCode);
         return nextCode;
     }

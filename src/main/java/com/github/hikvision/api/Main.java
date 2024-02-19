@@ -25,6 +25,7 @@ public class Main {
         String username = conf.getString("hikvision.server.username");
         String password = conf.getString("hikvision.server.password");
         String cleanupCronExpression = conf.getString("hikvision.cleanup.cron");
+        int hikvisionEmployeeCodeStep = conf.getInt("hikvision.employee.code.step");
 
         AppUIConfig appUIConfig = AppUIConfig
                 .builder()
@@ -39,9 +40,10 @@ public class Main {
                 .addUserButtonFontSize(conf.getInt("ui.add.user.button.font.size"))
                 .addUserButtonFontColor(conf.getString("ui.add.user.button.font.color"))
                 .addUserButtonShowBackground(conf.getBoolean("ui.add.user.button.showBackground"))
+                .modalWindowTimeoutSeconds(conf.getInt("ui.modal.window.timeout.seconds"))
                 .build();
 
-        HikVisionService service = new HikVisionServiceImpl(serverUrl, username, password);
+        HikVisionService service = new HikVisionServiceImpl(serverUrl, username, password, hikvisionEmployeeCodeStep);
         SchedulerFactory sf = new StdSchedulerFactory();
         Scheduler scheduler = sf.getScheduler();
         scheduler.start();

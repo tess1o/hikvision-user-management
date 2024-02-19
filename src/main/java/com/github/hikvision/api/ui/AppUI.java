@@ -16,8 +16,6 @@ import java.awt.event.ActionEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static javax.swing.JOptionPane.showMessageDialog;
-
 @Slf4j
 public class AppUI extends JFrame {
     public static final String BACKGROUND_FILE = "background.jpg";
@@ -34,7 +32,7 @@ public class AppUI extends JFrame {
         this.webcam.setViewSize(size);
         this.webcam.open();
 
-        JButton addUserButton = new JButton(new AddUserButtonAction(appConfig.getButtonText()));
+        JButton addUserButton = new JButton(new AddUserButtonAction(appConfig.getButtonText(), appConfig.getModalWindowTimeoutSeconds()));
         addUserButton.setEnabled(true);
         addUserButton.setBounds(appConfig.getAddUserButtonPositionX(), appConfig.getAddUserButtonPositionY(),
                 appConfig.getAddUserButtonWidth(), appConfig.getAddUserButtonHeight());
@@ -70,8 +68,11 @@ public class AppUI extends JFrame {
 
     private class AddUserButtonAction extends AbstractAction {
 
-        public AddUserButtonAction(String buttonName) {
+        private final int modalWindowTimeout;
+
+        public AddUserButtonAction(String buttonName, int modalWindowTimeout) {
             super(buttonName);
+            this.modalWindowTimeout = modalWindowTimeout;
         }
 
         @Override
@@ -83,11 +84,25 @@ public class AppUI extends JFrame {
                 ImageIO.write(webcam.getImage(), "jpg", baos);
                 byte[] photo = baos.toByteArray();
                 service.addUser(new UserInfo(employeeNo), photo);
-                showMessageDialog(null, "User with employeeNo '" + employeeNo + "' was added");
+                showMessage("User with employeeNo '" + employeeNo + "' was added", "User is added", JOptionPane.INFORMATION_MESSAGE, modalWindowTimeout);
             } catch (EmployeeAlreadyExist | FaceDetectFailed e1) {
-                showMessageDialog(null, e1.getMessage());
+                showMessage(e1.getMessage(), "Cannot add a new user", JOptionPane.ERROR_MESSAGE, modalWindowTimeout);
             } catch (IOException e3) {
                 log.error("Unexpected error happened, check the logs", e3);
+                showMessage("Unexpected error happened, check the logs", "Error", JOptionPane.ERROR_MESSAGE, modalWindowTimeout);
+            }
+        }
+
+        private void showMessage(String message, String title, int messageType, int timeoutSeconds) {
+            JOptionPane pane = new JOptionPane(message, messageType);
+            JDialog dialog = pane.createDialog(null, title);
+            dialog.setModal(false);
+            dialog.setVisible(true);
+
+            if (timeoutSeconds > 0) {
+                new Timer(timeoutSeconds * 1000, e -> {
+                    dialog.setVisible(false);
+                }).start();
             }
         }
     }

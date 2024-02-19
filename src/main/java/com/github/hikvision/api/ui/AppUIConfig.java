@@ -18,4 +18,5 @@ public class AppUIConfig {
     private int addUserButtonFontSize;
     private String addUserButtonFontColor;
     private boolean addUserButtonShowBackground;
+    private int modalWindowTimeoutSeconds;
 }
