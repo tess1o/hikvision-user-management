@@ -32,15 +32,15 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
+import static com.github.hikvision.api.services.HikVisionConstants.APPLICATION_X_WWW_FORM_URLENCODED_CHARSET_UTF_8;
+import static com.github.hikvision.api.services.HikVisionConstants.HikVisionErrors.EMPLOYEE_NO_ALREADY_EXIST_ERROR_MESSAGE;
+import static com.github.hikvision.api.services.HikVisionConstants.HikVisionErrors.FACE_DETECT_FAILED_ERROR_MESSAGE;
+import static com.github.hikvision.api.services.HikVisionConstants.HikVisionUrls.*;
+import static com.github.hikvision.api.services.HikVisionConstants.SEARCH_MAX_RESULTS;
+
 @Slf4j
 public class HikVisionServiceImpl implements HikVisionService {
-    public static final String EMPLOYEE_NO_ALREADY_EXIST_ERROR_MESSAGE = "employeeNoAlreadyExist";
-    public static final String FACE_DETECT_FAILED_ERROR_MESSAGE = "faceDetectFailed";
-    public static final int SEARCH_MAX_RESULTS = 30;
-    private static final String ADD_USER_URL = "/ISAPI/AccessControl/UserInfo/Record?format=json";
-    private static final String SEARCH_REQUEST_URL = "/ISAPI/AccessControl/UserInfo/Search?format=json";
-    private static final String DELETE_USER_URL = "/ISAPI/AccessControl/UserInfo/Delete?format=json";
-    private static final String ADD_PHOTO_URL = "/ISAPI/Intelligent/FDLib/FDSetUp?format=json";
+
     private final String serverUrl;
     private final String username;
     private final String password;
@@ -48,11 +48,11 @@ public class HikVisionServiceImpl implements HikVisionService {
     private final BasicCredentialsProvider credentialsProvider;
 
     @SneakyThrows
-    public HikVisionServiceImpl(String serverUrl, String username, String password, int hikvisionEmployeeCodeStep) {
+    public HikVisionServiceImpl(String serverUrl, String username, String password, int hikVisionEmployeeCodeStep) {
         this.serverUrl = serverUrl;
         this.username = username;
         this.password = password;
-        this.employeeCodeStep = hikvisionEmployeeCodeStep;
+        this.employeeCodeStep = hikVisionEmployeeCodeStep;
         this.credentialsProvider = getCredentialsProvider();
     }
 
@@ -86,7 +86,7 @@ public class HikVisionServiceImpl implements HikVisionService {
 
         String searchRequestString = mapper.writeValueAsString(searchRequest);
         HttpPost httpPost = new HttpPost(serverUrl + SEARCH_REQUEST_URL);
-        httpPost.addHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded; charset=UTF-8");
+        httpPost.addHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED_CHARSET_UTF_8);
         httpPost.setEntity(new StringEntity(searchRequestString));
         return httpClient.execute(httpPost,
                 response -> {
@@ -104,7 +104,7 @@ public class HikVisionServiceImpl implements HikVisionService {
             log.info("AddUserResponse: {}", addUserResponse);
             if (addUserResponse.getResponseCode() == 200) {
                 log.info("User with employeeNo '{}' was added", user.employeeNo);
-                HttpResponseWrapper addPhoto = addPhoto(httpClient, user.getEmployeeNo(), photo); //temporary
+                HttpResponseWrapper addPhoto = addPhoto(httpClient, user.getEmployeeNo(), photo);
                 log.info("Add photo response = {}", addPhoto);
                 if (addPhoto.getResponseCode() == 200) {
                     log.info("Photo is successfully added to user {}", user.getEmployeeNo());
@@ -143,7 +143,7 @@ public class HikVisionServiceImpl implements HikVisionService {
 
     private HttpResponseWrapper addUser(CloseableHttpClient client, UserInfo user) throws IOException {
         HttpPost httpPost = new HttpPost(serverUrl + ADD_USER_URL);
-        httpPost.addHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded; charset=UTF-8");
+        httpPost.addHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED_CHARSET_UTF_8);
         String addUserRequest = ObjectMapperFactory.getObjectMapper().writeValueAsString(user);
         httpPost.setEntity(new StringEntity(addUserRequest));
         return client.execute(httpPost,
@@ -202,7 +202,7 @@ public class HikVisionServiceImpl implements HikVisionService {
     private HttpResponseWrapper removeUsersById(List<String> ids) throws IOException {
         try (CloseableHttpClient httpClient = getHttpClient()) {
             HttpPut httpPut = new HttpPut(serverUrl + DELETE_USER_URL);
-            httpPut.addHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded; charset=UTF-8");
+            httpPut.addHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED_CHARSET_UTF_8);
             String removeRequest = ObjectMapperFactory.getObjectMapper().writeValueAsString(UserDeleteRequest.of(ids));
             httpPut.setEntity(new StringEntity(removeRequest));
             return httpClient.execute(httpPut,
