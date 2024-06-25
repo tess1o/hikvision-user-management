@@ -18,9 +18,17 @@ import java.io.IOException;
 
 @Slf4j
 public class AppUI extends JFrame {
-    public static final String BACKGROUND_FILE = "background.jpg";
+
+    public static final String BACKGROUND_MAIN = "background_main.jpg";
+    public static final String BACKGROUND_INSTRUCTION = "background_instruction.jpg";
     private final Webcam webcam;
     private final HikVisionService service;
+
+    private final JLabel mainBackground; // main image
+    private final Icon mainBackgroundIcon; // main image icon
+    private final Icon instructionIcon; //image with instructions
+    private final JButton addUserButton; //add new user button
+
 
     @SneakyThrows
     public AppUI(Webcam webcam, HikVisionService service, AppUIConfig appConfig) {
@@ -32,7 +40,32 @@ public class AppUI extends JFrame {
         this.webcam.setViewSize(size);
         this.webcam.open();
 
-        JButton addUserButton = new JButton(new AddUserButtonAction(appConfig.getButtonText(), appConfig.getModalWindowTimeoutSeconds()));
+        addUserButton = configureAddButton(appConfig);
+        setLayout(new FlowLayout());
+
+        mainBackgroundIcon = getImageIcon(BACKGROUND_MAIN);
+        instructionIcon = getImageIcon(BACKGROUND_INSTRUCTION);
+
+        mainBackground = new JLabel(mainBackgroundIcon);
+        add(mainBackground);
+        mainBackground.setLayout(null);
+        addUserButton.setLayout(null);
+        mainBackground.add(addUserButton);
+        pack();
+        setVisible(true);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        if (appConfig.isFullScreen()) {
+            setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH);
+        }
+    }
+
+    private static ImageIcon getImageIcon(String path) throws IOException {
+        return new ImageIcon(ImageIO.read(Thread.currentThread().getContextClassLoader().getResourceAsStream(path)));
+    }
+
+    private JButton configureAddButton(AppUIConfig appConfig) {
+        final JButton addUserButton;
+        addUserButton = new JButton(new AddUserButtonAction(appConfig.getButtonText(), appConfig.getModalWindowTimeoutSeconds()));
         addUserButton.setEnabled(true);
         addUserButton.setBounds(appConfig.getAddUserButtonPositionX(), appConfig.getAddUserButtonPositionY(),
                 appConfig.getAddUserButtonWidth(), appConfig.getAddUserButtonHeight());
@@ -43,19 +76,7 @@ public class AppUI extends JFrame {
         addUserButton.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0)); // Especially important
         addUserButton.setFont(new Font(appConfig.getAddUserButtonFontName(), Font.BOLD, appConfig.getAddUserButtonFontSize()));
         addUserButton.setForeground(getButtonTextColor(appConfig.getAddUserButtonFontColor()));
-
-        setLayout(new FlowLayout());
-        JLabel background = new JLabel(new ImageIcon(ImageIO.read(Thread.currentThread().getContextClassLoader().getResourceAsStream(BACKGROUND_FILE))));
-        add(background);
-        background.setLayout(null);
-        addUserButton.setLayout(null);
-        background.add(addUserButton);
-        pack();
-        setVisible(true);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        if (appConfig.isFullScreen()) {
-            setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH);
-        }
+        return addUserButton;
     }
 
     private Color getButtonTextColor(String hexColorFromConfig) {
@@ -84,7 +105,7 @@ public class AppUI extends JFrame {
                 ImageIO.write(webcam.getImage(), "jpg", baos);
                 byte[] photo = baos.toByteArray();
                 service.addUser(new UserInfo(employeeNo), photo);
-                showMessage("User with employeeNo '" + employeeNo + "' was added", "User is added", JOptionPane.INFORMATION_MESSAGE, modalWindowTimeout);
+                handleSuccess(modalWindowTimeout);
             } catch (EmployeeAlreadyExist | FaceDetectFailed e1) {
                 showMessage(e1.getMessage(), "Cannot add a new user", JOptionPane.ERROR_MESSAGE, modalWindowTimeout);
             } catch (IOException e3) {
@@ -104,6 +125,25 @@ public class AppUI extends JFrame {
                     dialog.setVisible(false);
                 }).start();
             }
+        }
+    }
+
+    /**
+     * Temporary show image with instructions (and disable addUserButton). After timeout change the image back to main and enable the button
+     * @param timeoutSeconds how long to show the instruction
+     */
+    @SneakyThrows
+    private void handleSuccess(int timeoutSeconds) {
+        log.info("The user was added to HikVision, changing background to an image with instructions");
+        mainBackground.setIcon(instructionIcon);
+        addUserButton.setEnabled(false);
+
+        if (timeoutSeconds > 0) {
+            new Timer(timeoutSeconds * 1000, e -> {
+                log.info("Changing background back to the main");
+                mainBackground.setIcon(mainBackgroundIcon);
+                addUserButton.setEnabled(true);
+            }).start();
         }
     }
 }
